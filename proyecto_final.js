@@ -1,13 +1,15 @@
 const fs = require('fs');
 const CsvGen = require('./csv_generators');
 const Randomizer = require('./randomizer');
+const env = require('./.env');
 const Process = require('./utils/Process');
+const { env } = require('process');
 const timers = {
     mysql: {},
     mongo: {}
 };
 
-const dbUser = "root";
+const dbUser = env.DB_USER;
 const dbPwd = "token1234";
 const fsPath = 'C:\\Users\\mzpra\\OneDrive\\Documentos\\Proyects\\8A2025\\';
 const secureFilePath = 'C:/Users/mzpra/OneDrive/Documentos/Proyects/8A2025/';
