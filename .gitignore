@@ -1,0 +1,9 @@
+*.sql
+*.html
+*.json
+autores.txt
+libros.txt
+estresador.js
+examen.js
+test.js
+data_loader.js
