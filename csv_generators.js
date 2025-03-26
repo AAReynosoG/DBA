@@ -1,8 +1,6 @@
 const fs = require('fs');
 const Randomizer = require('./randomizer');
 
-const fsPath = '.\\';
-
 class CsvGen {
     static generateAuthorsCSVData(size, uniqueIds, uniqueLicences) {
         let csv = ""
@@ -21,7 +19,7 @@ class CsvGen {
         return csv
     }
 
-    static generateBooksCSVData(size, authorsLicences, uniqueIds) {
+    static generateBooksCSVData(size, authorsLicences, uniqueIds, fsPath) {
         const csv = fs.createWriteStream(fsPath + 'libros.txt');
 
         for (let i = 0; i < size; i++) {

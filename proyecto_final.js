@@ -28,7 +28,7 @@ const secureFilePath = 'C:/Users/mzpra/OneDrive/Documentos/Proyects/8A2025/';
     console.log(authorLicences.length);
 
     let startTime = Date.now();
-    CsvGen.generateBooksCSVData(NUM, authorLicences, uniqueIds)
+    CsvGen.generateBooksCSVData(NUM, authorLicences, uniqueIds, fsPath)
     let endTime = Date.now();
     timers.mysql.booksGenerationTime = (endTime - startTime)/1000;
 
