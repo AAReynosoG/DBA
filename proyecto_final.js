@@ -98,4 +98,26 @@ const MYSQL_PROCESS = env.MYSQL_PROCESS;
     if (tablesBackup.ErrorsLog) console.error(`Error during export: ${tablesBackup.ErrorsLog}`);
     timers.mysql.tablesBackupTime = tablesBackup.EndTime - tablesBackup.StartTime;
     console.log(`Tiempo de respaldo de tablas: ${(timers.mysql.tablesBackupTime)}`);
+
+
+  /*
+    * Tiempo que toma eliminar las tablas de MySQL
+    * */
+
+    const dropTables = new Process(MYSQL_PROCESS);
+    dropTables.ProcessArguments.push(`-u${DB_USER}`);
+    dropTables.ProcessArguments.push(`--password=${DB_PWD}`);
+    dropTables.Execute();
+    dropTables.Write(`DELETE FROM proyecto_final.Libro;`);
+    dropTables.End();
+    await dropTables.Finish();
+    if (dropTables.ErrorsLog) console.error(`Error during export: ${dropTables.ErrorsLog}`);
+    dropTables.Execute();
+    dropTables.Write(`DELETE FROM proyecto_final.Autor;`);
+    dropTables.End();
+    await dropTables.Finish();
+    if (dropTables.ErrorsLog) console.error(`Error during export: ${dropTables.ErrorsLog}`);
+    timers.mysql.dropTablesTime = dropTables.EndTime - dropTables.StartTime;
+    console.log(`Tiempo de eliminación de tablas: ${(timers.mysql.dropTablesTime)}`);
+
 })()
