@@ -357,10 +357,11 @@ const timers = {
 
 
   /*
-    * Tiempo que toma realizar un dump completo
-    * de la base de datos de MYSQL 
+    * Tiempo total que toma realizar un dump completo de la base de datos de MySQL
+    * y luego borrar su contenido (vaciar tablas o eliminar la base de datos)
     * */
 
+  const startTime = Date.now();
   const fullDump = new Process('mysqldump');
   fullDump.ProcessArguments.push(`-u${DB_USER}`);
   fullDump.ProcessArguments.push(`--password=${DB_PWD}`);
@@ -370,9 +371,18 @@ const timers = {
   fullDump.Execute();
   await fullDump.Finish();
 
-  if (fullDump.ErrorsLog) console.error(`Error during export: ${fullDump.ErrorsLog}`);
-  timers.mysql.fullDumpTime = fullDump.EndTime - fullDump.StartTime;
-  console.log(`Tiempo de dump de MYSQL completo en: ${(timers.mysql.fullDumpTime)}`);
+  const clearDatabase = new Process('mysql');
+  clearDatabase.ProcessArguments.push(`-u${DB_USER}`);
+  clearDatabase.ProcessArguments.push(`--password=${DB_PWD}`);
+  clearDatabase.ProcessArguments.push('-e');
+  clearDatabase.ProcessArguments.push('DROP DATABASE IF EXISTS proyecto_final; CREATE DATABASE proyecto_final;');
+
+  clearDatabase.Execute();
+  await clearDatabase.Finish();
+
+  const endTime = Date.now();
+  timers.mysql.fullDumpTime = endTime - startTime;
+  console.log(`Tiempo total de dump y vaciado de MYSQL completo en: ${(timers.mysql.fullDumpTime)} ms`);
 
 
   /*
@@ -380,6 +390,15 @@ const timers = {
     * el dump completo de MYSQL
     * */
 
-
-    
+  const fullDumpImport = new Process(MYSQL_PROCESS);
+  fullDumpImport.ProcessArguments.push(`-u${DB_USER}`);
+  fullDumpImport.ProcessArguments.push(`--password=${DB_PWD}`);
+  fullDumpImport.ProcessArguments.push(`--database=proyecto_final`);
+  fullDumpImport.Execute();
+  fullDumpImport.Write(`SOURCE ${SECURE_FILE_PATH}fullDump.sql`);
+  fullDumpImport.End();
+  await fullDumpImport.Finish();
+  if (fullDumpImport.ErrorsLog) console.error(`Error during export: ${fullDumpImport.ErrorsLog}`);
+  timers.mysql.fullDumpImportTime = fullDumpImport.EndTime - fullDumpImport.StartTime;
+  console.log(`Tiempo de importación de dump completo de MYSQL: ${(timers.mysql.fullDumpImportTime)}`);
 })()
