@@ -74,12 +74,16 @@ const MYSQL_PROCESS = env.MYSQL_PROCESS;
     tablesBackup.ProcessArguments.push(`-u${DB_USER}`);
     tablesBackup.ProcessArguments.push(`--password=${DB_PWD}`);
     tablesBackup.Execute();
+
     tablesBackup.Write(`
-      SELECT * INTO OUTFILE '${SECURE_FILE_PATH}autoresBackup.txt'
+      SELECT 'id', 'license', 'name', 'lastName', 'secondLastName', 'year'
+      UNION
+      SELECT id, license, name, lastName, secondLastName, year
+      FROM proyecto_final.Autor
+      INTO OUTFILE '${SECURE_FILE_PATH}autoresBackup.txt'
       FIELDS TERMINATED BY ',' 
       ENCLOSED BY '"'
-      LINES TERMINATED BY '\n'
-      FROM proyecto_final.Autor;
+      LINES TERMINATED BY '\n';
     `);
     tablesBackup.End();
     await tablesBackup.Finish();
@@ -87,11 +91,14 @@ const MYSQL_PROCESS = env.MYSQL_PROCESS;
 
     tablesBackup.Execute();
     tablesBackup.Write(`
-      SELECT * INTO OUTFILE '${SECURE_FILE_PATH}librosBackup.txt'
+      SELECT 'id', 'ISBN', 'title', 'autor_license', 'editorial', 'pages', 'year', 'genre', 'language', 'format', 'sinopsis', 'content'
+      UNION
+      SELECT id, ISBN, title, autor_license, editorial, pages, year, genre, language, format, sinopsis, content
+      FROM proyecto_final.Libro
+      INTO OUTFILE '${SECURE_FILE_PATH}librosBackup.txt'
       FIELDS TERMINATED BY ',' 
       ENCLOSED BY '"'
       LINES TERMINATED BY '\n'
-      FROM proyecto_final.Libro;
     `); 
     tablesBackup.End();
     await tablesBackup.Finish();
@@ -119,7 +126,6 @@ const MYSQL_PROCESS = env.MYSQL_PROCESS;
     if (dropTables.ErrorsLog) console.error(`Error during export: ${dropTables.ErrorsLog}`);
     timers.mysql.dropTablesTime = dropTables.EndTime - dropTables.StartTime;
     console.log(`Tiempo de eliminación de tablas: ${(timers.mysql.dropTablesTime)}`);
-
 
 
   /*
@@ -150,11 +156,33 @@ const MYSQL_PROCESS = env.MYSQL_PROCESS;
     timers.mongo.mongoBackupTime = bookMongoBackup.EndTime - bookMongoBackup.StartTime;
     console.log(`Tiempo de respaldo de MongoDB: ${(timers.mongo.mongoBackupTime)}`);
 
+  /*
+    * Tiempo que toma exportar el respaldo de MongoDB
+    * */
 
+    const authorMongoExport = new Process('mongoexport');
+    authorMongoExport.ProcessArguments.push('--db=proyecto_final');
+    authorMongoExport.ProcessArguments.push('--collection=Autor');
+    authorMongoExport.ProcessArguments.push('--type=csv');
+    authorMongoExport.ProcessArguments.push('--fields=id,license,name,lastName,secondLastName,year');
+    authorMongoExport.ProcessArguments.push(`--out=${SECURE_FILE_PATH}autoresMongoBackup.txt`);
+    authorMongoExport.Execute();
+    await authorMongoExport.Finish();
+    if (authorMongoExport.ErrorsLog) console.error(`Error during export: ${authorMongoExport.ErrorsLog}`);
+    timers.mongo.mongoExportTime = authorMongoExport.EndTime - authorMongoExport.StartTime;
+    console.log(`Tiempo de exportación de MongoDB: ${(timers.mongo.mongoExportTime)}`);
+
+
+    const bookMongoExport = new Process('mongoexport');
+    bookMongoExport.ProcessArguments.push('--db=proyecto_final');
+    bookMongoExport.ProcessArguments.push('--collection=Libro');
+    bookMongoExport.ProcessArguments.push('--type=csv');
+    bookMongoExport.ProcessArguments.push('--fields=id,ISBN,title,autor_license,editorial,pages,year,genre,language,format,sinopsis,content');
+    bookMongoExport.ProcessArguments.push(`--out=${SECURE_FILE_PATH}librosMongoBackup.txt`);
+    bookMongoExport.Execute();
+    await bookMongoExport.Finish();
+    if (bookMongoExport.ErrorsLog) console.error(`Error during export: ${bookMongoExport.ErrorsLog}`);
+    timers.mongo.mongoExportTime = bookMongoExport.EndTime - bookMongoExport.StartTime;
+    console.log(`Tiempo de exportación de MongoDB: ${(timers.mongo.mongoExportTime)}`);
     
-    
-    
-
-
-
 })()
