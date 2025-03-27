@@ -120,4 +120,41 @@ const MYSQL_PROCESS = env.MYSQL_PROCESS;
     timers.mysql.dropTablesTime = dropTables.EndTime - dropTables.StartTime;
     console.log(`Tiempo de eliminación de tablas: ${(timers.mysql.dropTablesTime)}`);
 
+
+
+  /*
+    * Tiempo que toma exportar el respaldo de MongoDB
+    * */
+
+    const authorMongoBackup = new Process('mongoimport');
+    authorMongoBackup.ProcessArguments.push('--db=proyecto_final');
+    authorMongoBackup.ProcessArguments.push('--collection=Autor');
+    authorMongoBackup.ProcessArguments.push('--type=csv');
+    authorMongoBackup.ProcessArguments.push(`--file=${SECURE_FILE_PATH}autoresBackup.txt`);
+    authorMongoBackup.ProcessArguments.push('--headerline');
+    authorMongoBackup.Execute();
+    await authorMongoBackup.Finish();
+    if (authorMongoBackup.ErrorsLog) console.error(`Error during export: ${authorMongoBackup.ErrorsLog}`);
+    timers.mongo.mongoBackupTime = authorMongoBackup.EndTime - authorMongoBackup.StartTime;
+    console.log(`Tiempo de respaldo de MongoDB: ${(timers.mongo.mongoBackupTime)}`);
+
+    const bookMongoBackup = new Process('mongoimport');
+    bookMongoBackup.ProcessArguments.push('--db=proyecto_final');
+    bookMongoBackup.ProcessArguments.push('--collection=Libro');
+    bookMongoBackup.ProcessArguments.push('--type=csv');
+    bookMongoBackup.ProcessArguments.push(`--file=${SECURE_FILE_PATH}librosBackup.txt`);
+    bookMongoBackup.ProcessArguments.push('--headerline');
+    bookMongoBackup.Execute();
+    await bookMongoBackup.Finish();
+    if (bookMongoBackup.ErrorsLog) console.error(`Error during export: ${bookMongoBackup.ErrorsLog}`);
+    timers.mongo.mongoBackupTime = bookMongoBackup.EndTime - bookMongoBackup.StartTime;
+    console.log(`Tiempo de respaldo de MongoDB: ${(timers.mongo.mongoBackupTime)}`);
+
+
+    
+    
+    
+
+
+
 })()
