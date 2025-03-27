@@ -8,3 +8,5 @@ examen.js
 test.js
 data_loader.js
 import_data.js
+.env.js
+*.txt
