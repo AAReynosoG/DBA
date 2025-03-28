@@ -401,4 +401,21 @@ const timers = {
   if (fullDumpImport.ErrorsLog) console.error(`Error during export: ${fullDumpImport.ErrorsLog}`);
   timers.mysql.fullDumpImportTime = fullDumpImport.EndTime - fullDumpImport.StartTime;
   console.log(`Tiempo de importación de dump completo de MYSQL: ${(timers.mysql.fullDumpImportTime)}`);
+
+  /*
+    * 
+    * Calcular el tiempo cuando el usuario C intenta insertar 
+    * en la tabla Autor
+    * */
+
+  /* const userCInsert = new Process(MYSQL_PROCESS);
+  userCInsert.ProcessArguments.push('-uC');
+  userCInsert.ProcessArguments.push('-ptoken1234')
+  userCInsert.ProcessArguments.push(`-e`);
+  userCInsert.ProcessArguments.push(`INSERT INTO proyecto_final.Autor (license, name, lastName, secondLastName, year) VALUES ('${Randomizer.generateLicense()}', 'Juan', 'Perez', 'Gomez', 1990);`); */
+
+
+
+
+
 })()
