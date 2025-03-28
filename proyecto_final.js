@@ -21,7 +21,6 @@ const timers = {
     let start;
     let end;
 
-
     const files = [
       'licencias.txt', 
       'autoresCSV.txt', 
@@ -502,7 +501,7 @@ const timers = {
     * */
     console.log('Exportando solo los fields ISBN, year, pages......');
   /**********************************************************************/
-
+  start = Date.now();
   const mongoExportBookData = new Process('mongoexport');
   mongoExportBookData.ProcessArguments.push(`--username=${env.MONGO_USER}`);
   mongoExportBookData.ProcessArguments.push(`--password=${env.MONGO_PASSWORD}`);
@@ -515,7 +514,8 @@ const timers = {
   mongoExportBookData.Execute();
   await mongoExportBookData.Finish();
   if (mongoExportBookData.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${mongoExportBookData.ErrorsLog}`);
-  timers.mongo.mongoExportBookDataTime = (mongoExportBookData.EndTime - mongoExportBookData.StartTime) / 1000;
+  end = Date.now();
+  timers.mongo.mongoExportBookDataTime = (end - start) / 1000;
   console.log(`[17] Tiempo en exportar solo los fields ISBN, year, pages: ${(timers.mongo.mongoExportBookDataTime)} segundos`);
 
   /**********************************************************************/
@@ -544,4 +544,81 @@ const timers = {
   console.log(`[18] Tiempo en agreagar los datos a la tabla old_books: ${(timers.mongo.mongoImportBookDataTime)} segundos`);
 
   /**********************************************************************/
+  /*
+    * Realizar el reporte enn grafico
+    * */
+  /**********************************************************************/
+
+  generarReporte(timers)
 })()
+
+
+function generarReporte(metricas) {
+    let contenedorHTML = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <title>Métricas de BDD</title>
+        </head>
+        <body class="bg-gray-100 p-4">
+            <h1 class="text-3xl text-center font-bold mb-4">Métricas de BDD</h1>
+            <div id="contenedor-graficos" class="grid grid-cols-4 gap-4"></div>
+            <script>
+                window.onload = function () {
+                    const metricas = ${JSON.stringify(metricas)};
+                    const contenedor = document.getElementById("contenedor-graficos");
+
+                    function crearGraficoDoughnut(id, label, value) {
+                        const canvas = document.getElementById(id);
+                        if (!canvas) {
+                            console.error("No se encontró el canvas con ID: " + id);
+                            return;
+                        }
+
+                        const ctx = canvas.getContext("2d");
+
+                        new Chart(ctx, {
+                            type: "doughnut",
+                            data: {
+                                labels: [label, "Restante"],
+                                datasets: [{
+                                    data: [value, Math.max(0, 250 - value)],
+                                    backgroundColor: ["#4CAF50", "#E0E0E0"],
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: true
+                            }
+                        });
+                    }
+
+                    let idContador = 1;
+                    Object.keys(metricas).forEach(db => {
+                        Object.entries(metricas[db]).forEach(([label, value]) => {
+                            const card = document.createElement("div");
+                            card.className = "bg-white p-4 shadow rounded-lg flex flex-col items-center";
+                            card.innerHTML = \`
+                                <h2 class="text-sm font-semibold mb-2">\${label} (\${db})</h2>
+                                <canvas id="grafico-\${idContador}" class="w-full max-w-[200px] max-h-[200px]"></canvas>
+                                <h2 class="text-sm font-semibold mb-2">\${value} s</h2>
+                            \`;
+                            contenedor.appendChild(card);
+
+                            crearGraficoDoughnut(\`grafico-\${idContador}\`, label, value);
+                            idContador++;
+                        });
+                    });
+                };
+            </script>
+        </body>
+        </html>
+    `;
+
+    fs.writeFileSync("reporte.html", contenedorHTML);
+    console.log("Reporte generado: reporte.html");
+}
