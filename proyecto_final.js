@@ -21,6 +21,8 @@ const timers = {
     let start;
     let end;
 
+
+    
     fs.unlink(FS_PATH + 'licencias.txt', (err) => {
         if (err) {
             console.error(`Error al borrar archivo de licencias: ${err}`)
@@ -402,20 +404,59 @@ const timers = {
   timers.mysql.fullDumpImportTime = fullDumpImport.EndTime - fullDumpImport.StartTime;
   console.log(`Tiempo de importación de dump completo de MYSQL: ${(timers.mysql.fullDumpImportTime)}`);
 
+
+    /*
+      * 
+      * Calcular el tiempo cuando el usuario C intenta insertar 
+      * en la tabla Autor
+      * */
+
+    const userCInsert = new Process(MYSQL_PROCESS);
+    userCInsert.ProcessArguments.push('-uC');
+    userCInsert.ProcessArguments.push('-ptoken1234')
+    userCInsert.ProcessArguments.push(`-e`);
+    userCInsert.ProcessArguments.push(`
+      INSERT INTO proyecto_final.Autor 
+      (license, name, lastName, secondLastName, year) 
+      VALUES ('UUID()', 'Juan', 'Perez', 'Gomez', 1990);`);
+
+    userCInsert.Execute();
+    await userCInsert.Finish();
+    timers.mysql.userCInsertTime = userCInsert.EndTime - userCInsert.StartTime;
+    console.log(`Tiempo de error de inserción de usuario C en Autor: ${(timers.mysql.userCInsertTime)}`);
+
+    /*
+      * 
+      * Calcular el tiempo cuando el usuario C intenta insertar 
+      * en la tabla Libro
+      * */
+
+    const userCInsertBook = new Process(MYSQL_PROCESS);
+    userCInsertBook.ProcessArguments.push('-uC');
+    userCInsertBook.ProcessArguments.push('-ptoken1234')
+    userCInsertBook.ProcessArguments.push(`-e`);
+    userCInsertBook.ProcessArguments.push(`
+      INSERT INTO proyecto_final.Libro 
+      (ISBN, title, autor_license, editorial, pages, year, genre, language, format, sinopsis, content) 
+      VALUES ('UUID()', 'El libro de Juan', '123456', 'Editorial', 100, 1990, 'Fantasia', 'Español', 'PDF', 'Sinopsis', 'Contenido');`);
+
+    userCInsertBook.Execute();
+    await userCInsertBook.Finish();
+    timers.mysql.userCInsertBookTime = userCInsertBook.EndTime - userCInsertBook.StartTime;
+    console.log(`Tiempo de error de inserccion en tabla Libro: ${(timers.mysql.userCInsertBookTime)}`);
+
+
   /*
-    * 
-    * Calcular el tiempo cuando el usuario C intenta insertar 
-    * en la tabla Autor
-    * */
-
-  /* const userCInsert = new Process(MYSQL_PROCESS);
-  userCInsert.ProcessArguments.push('-uC');
-  userCInsert.ProcessArguments.push('-ptoken1234')
-  userCInsert.ProcessArguments.push(`-e`);
-  userCInsert.ProcessArguments.push(`INSERT INTO proyecto_final.Autor (license, name, lastName, secondLastName, year) VALUES ('${Randomizer.generateLicense()}', 'Juan', 'Perez', 'Gomez', 1990);`); */
-
-
-
+    * Generar 100k de datos para MongoDB
+    */
+    start = Date.now();
+    const QUANTITY = 1_000_000;
+    const QUANTITY_2 = 1_000_000;
+    const ID_UNIQUE = Randomizer.generateUniqueIds(QUANTITY);
+    const LICENCES_UNIQUE = Randomizer.generateUniqueLicences(QUANTITYtimers_2);
+    CsvGen.generateBooksCSVDataByThreads(1000000, LICENCES_UNIQUE, 10, FS_PATH + 'mongo1mBooks.txt')
+    end = Date.now();
+    console.log(`Tiempo de generación de libros para MongoDB: ${(end - start)/1000} segundos`);
 
 
 })()
