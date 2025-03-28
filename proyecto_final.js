@@ -21,21 +21,21 @@ const timers = {
     let start;
     let end;
 
-    fs.unlink(FS_PATH + 'licencias.txt', (err) => {
-        if (err) {
-            console.error(`Error al borrar archivo de licencias: ${err}`)
-        }
-    });
+    const files = ['licencias.txt', 'autoresCSV.txt', 'librosCSV.txt'];
 
-    fs.unlink(FS_PATH + 'autoresCSV.txt', (err) => {
-        if (err) {
-            console.error(`Error al borrar archivo de autoresCSV: ${err}`)
-        }
-    });
+    files.forEach(file => {
+        const filePath = FS_PATH + file;
 
-    fs.unlink(FS_PATH + 'librosCSV.txt', (err) => {
-        if (err) {
-            console.error(`Error al borrar archivo de librosCSV: ${err}`)
+        if (fs.existsSync(filePath)) {
+            fs.unlink(filePath, (err) => {
+                if (err) {
+                    console.error(`Error al borrar archivo ${file}: ${err}`);
+                } else {
+                    console.log(`Archivo ${file} eliminado correctamente.`);
+                }
+            });
+        } else {
+            console.log(`Archivo ${file} no existe, no se necesita eliminar.`);
         }
     });
 
