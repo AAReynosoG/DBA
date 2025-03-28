@@ -178,7 +178,6 @@ const timers = {
     *  el respaldo de MongoDB y restaurarlo en MySQL.
     * */
 
-
   /*
     * Tiempo que toma respaldar ambas tablas a MongoDB
     * */
@@ -187,12 +186,16 @@ const timers = {
     tablesBackup.ProcessArguments.push(`-u${DB_USER}`);
     tablesBackup.ProcessArguments.push(`--password=${DB_PWD}`);
     tablesBackup.Execute();
+
     tablesBackup.Write(`
-      SELECT * INTO OUTFILE '${SECURE_FILE_PATH}autoresBackup.txt'
+      SELECT 'id', 'license', 'name', 'lastName', 'secondLastName', 'year'
+      UNION
+      SELECT id, license, name, lastName, secondLastName, year
+      FROM proyecto_final.Autor
+      INTO OUTFILE '${SECURE_FILE_PATH}autoresBackup.txt'
       FIELDS TERMINATED BY ',' 
       ENCLOSED BY '"'
-      LINES TERMINATED BY '\n'
-      FROM proyecto_final.Autor;
+      LINES TERMINATED BY '\n';
     `);
     tablesBackup.End();
     await tablesBackup.Finish();
@@ -200,18 +203,20 @@ const timers = {
 
     tablesBackup.Execute();
     tablesBackup.Write(`
-      SELECT * INTO OUTFILE '${SECURE_FILE_PATH}librosBackup.txt'
+      SELECT 'id', 'ISBN', 'title', 'autor_license', 'editorial', 'pages', 'year', 'genre', 'language', 'format', 'sinopsis', 'content'
+      UNION
+      SELECT id, ISBN, title, autor_license, editorial, pages, year, genre, language, format, sinopsis, content
+      FROM proyecto_final.Libro
+      INTO OUTFILE '${SECURE_FILE_PATH}librosBackup.txt'
       FIELDS TERMINATED BY ',' 
       ENCLOSED BY '"'
       LINES TERMINATED BY '\n'
-      FROM proyecto_final.Libro;
     `); 
     tablesBackup.End();
     await tablesBackup.Finish();
     if (tablesBackup.ErrorsLog) console.error(`Error during export: ${tablesBackup.ErrorsLog}`);
     timers.mysql.tablesBackupTime = tablesBackup.EndTime - tablesBackup.StartTime;
     console.log(`Tiempo de respaldo de tablas: ${(timers.mysql.tablesBackupTime)}`);
-
 
   /*
     * Tiempo que toma eliminar las tablas de MySQL
@@ -234,12 +239,16 @@ const timers = {
     console.log(`Tiempo de eliminación de tablas: ${(timers.mysql.dropTablesTime)}`);
 
 
-
   /*
-    * Tiempo que toma exportar el respaldo de MongoDB
+    * Tiempo que toma importar el respaldo de MongoDB
+    * Usa los arhicovs autoresBackup.txt y librosBackup.txt generados en el paso anterior
+    * para importarlos a MongoDB
     * */
 
     const authorMongoBackup = new Process('mongoimport');
+    authorMongoBackup.ProcessArguments.push(`--username=${env.MONGO_USER}`);
+    authorMongoBackup.ProcessArguments.push(`--password=${env.MONGO_PASSWORD}`);
+    authorMongoBackup.ProcessArguments.push(`--authenticationDatabase=${env.MONGO_AUTH_DATABASE}`);
     authorMongoBackup.ProcessArguments.push('--db=proyecto_final');
     authorMongoBackup.ProcessArguments.push('--collection=Autor');
     authorMongoBackup.ProcessArguments.push('--type=csv');
@@ -252,6 +261,9 @@ const timers = {
     console.log(`Tiempo de respaldo de MongoDB: ${(timers.mongo.mongoBackupTime)}`);
 
     const bookMongoBackup = new Process('mongoimport');
+    bookMongoBackup.ProcessArguments.push(`--username=${env.MONGO_USER}`);
+    bookMongoBackup.ProcessArguments.push(`--password=${env.MONGO_PASSWORD}`);
+    bookMongoBackup.ProcessArguments.push(`--authenticationDatabase=${env.MONGO_AUTH_DATABASE}`);
     bookMongoBackup.ProcessArguments.push('--db=proyecto_final');
     bookMongoBackup.ProcessArguments.push('--collection=Libro');
     bookMongoBackup.ProcessArguments.push('--type=csv');
@@ -262,4 +274,131 @@ const timers = {
     if (bookMongoBackup.ErrorsLog) console.error(`Error during export: ${bookMongoBackup.ErrorsLog}`);
     timers.mongo.mongoBackupTime = bookMongoBackup.EndTime - bookMongoBackup.StartTime;
     console.log(`Tiempo de respaldo de MongoDB: ${(timers.mongo.mongoBackupTime)}`);
+
+    
+  /*
+    * Tiempo que toma exportar el respaldo de MongoDB
+    * Exporta los datos de MongoDB a los archivos autoresMongoBackup.txt y librosMongoBackup.txt
+    * */
+
+    const authorMongoExport = new Process('mongoexport');
+    authorMongoExport.ProcessArguments.push(`--username=${env.MONGO_USER}`);
+    authorMongoExport.ProcessArguments.push(`--password=${env.MONGO_PASSWORD}`);
+    authorMongoExport.ProcessArguments.push(`--authenticationDatabase=${env.MONGO_AUTH_DATABASE}`);
+    authorMongoExport.ProcessArguments.push('--db=proyecto_final');
+    authorMongoExport.ProcessArguments.push('--collection=Autor');
+    authorMongoExport.ProcessArguments.push('--type=csv');
+    authorMongoExport.ProcessArguments.push('--fields=id,license,name,lastName,secondLastName,year');
+    authorMongoExport.ProcessArguments.push(`--out=${SECURE_FILE_PATH}autoresMongoBackup.txt`);
+    authorMongoExport.Execute();
+    await authorMongoExport.Finish();
+    if (authorMongoExport.ErrorsLog) console.error(`Error during export: ${authorMongoExport.ErrorsLog}`);
+    timers.mongo.mongoExportTime = authorMongoExport.EndTime - authorMongoExport.StartTime;
+    console.log(`Tiempo de exportación de MongoDB: ${(timers.mongo.mongoExportTime)}`);
+
+
+    const bookMongoExport = new Process('mongoexport');
+    bookMongoExport.ProcessArguments.push(`--username=${env.MONGO_USER}`);
+    bookMongoExport.ProcessArguments.push(`--password=${env.MONGO_PASSWORD}`);
+    bookMongoExport.ProcessArguments.push(`--authenticationDatabase=${env.MONGO_AUTH_DATABASE}`);
+    bookMongoExport.ProcessArguments.push('--db=proyecto_final');
+    bookMongoExport.ProcessArguments.push('--collection=Libro');
+    bookMongoExport.ProcessArguments.push('--type=csv');
+    bookMongoExport.ProcessArguments.push('--fields=id,ISBN,title,autor_license,editorial,pages,year,genre,language,format,sinopsis,content');
+    bookMongoExport.ProcessArguments.push(`--out=${SECURE_FILE_PATH}librosMongoBackup.txt`);
+    bookMongoExport.Execute();
+    await bookMongoExport.Finish();
+    if (bookMongoExport.ErrorsLog) console.error(`Error during export: ${bookMongoExport.ErrorsLog}`);
+    timers.mongo.mongoExportTime = bookMongoExport.EndTime - bookMongoExport.StartTime;
+    console.log(`Tiempo de exportación de MongoDB: ${(timers.mongo.mongoExportTime)}`);
+
+
+  /*
+    * Tiempo que toma restaurar el respaldo de MongoDB en MsSQL
+    * tomar los archivos generados en el paso anterior y restaurarlos en MySQL
+    * */
+
+  const authorMongoRestore = new Process(MYSQL_PROCESS);
+  authorMongoRestore.ProcessArguments.push(`-u${DB_USER}`);
+  authorMongoRestore.ProcessArguments.push(`--password=${DB_PWD}`);
+  authorMongoRestore.Execute();
+  authorMongoRestore.Write(`
+    LOAD DATA INFILE '${SECURE_FILE_PATH}autoresMongoBackup.txt' 
+    INTO TABLE proyecto_final.Autor 
+    FIELDS TERMINATED BY ',' 
+    ENCLOSED BY '"'
+    LINES TERMINATED BY '\n'
+    IGNORE 1 ROWS;
+  `);
+
+  authorMongoRestore.End();
+  await authorMongoRestore.Finish();
+  if (authorMongoRestore.ErrorsLog) console.error(`Error during export: ${authorMongoRestore.ErrorsLog}`);
+  timers.mongo.mongoRestoreTime = authorMongoRestore.EndTime - authorMongoRestore.StartTime;
+  console.log(`Tiempo de restauración de MongoDB: ${(timers.mongo.mongoRestoreTime)}`);
+
+  const bookMongoRestore = new Process(MYSQL_PROCESS);
+  bookMongoRestore.ProcessArguments.push(`-u${DB_USER}`);
+  bookMongoRestore.ProcessArguments.push(`--password=${DB_PWD}`);
+  bookMongoRestore.Execute();
+  bookMongoRestore.Write(`
+    LOAD DATA INFILE '${SECURE_FILE_PATH}librosMongoBackup.txt' 
+    INTO TABLE proyecto_final.Libro 
+    FIELDS TERMINATED BY ',' 
+    ENCLOSED BY '"'
+    LINES TERMINATED BY '\n'
+    IGNORE 1 ROWS;
+  `);
+  bookMongoRestore.End();
+  await bookMongoRestore.Finish();
+  if (bookMongoRestore.ErrorsLog) console.error(`Error during export: ${bookMongoRestore.ErrorsLog}`);
+  timers.mongo.mongoRestoreTime = bookMongoRestore.EndTime - bookMongoRestore.StartTime;
+  console.log(`Tiempo de restauración de MongoDB: ${(timers.mongo.mongoRestoreTime)}`);
+
+
+  /*
+    * Tiempo total que toma realizar un dump completo de la base de datos de MySQL
+    * y luego borrar su contenido (vaciar tablas o eliminar la base de datos)
+    * */
+
+  const startTime = Date.now();
+  const fullDump = new Process('mysqldump');
+  fullDump.ProcessArguments.push(`-u${DB_USER}`);
+  fullDump.ProcessArguments.push(`--password=${DB_PWD}`);
+  fullDump.ProcessArguments.push('proyecto_final');
+  fullDump.ProcessArguments.push(`--result-file=${SECURE_FILE_PATH}fullDump.sql`);
+
+  fullDump.Execute();
+  await fullDump.Finish();
+
+  const clearDatabase = new Process('mysql');
+  clearDatabase.ProcessArguments.push(`-u${DB_USER}`);
+  clearDatabase.ProcessArguments.push(`--password=${DB_PWD}`);
+  clearDatabase.ProcessArguments.push('-e');
+  clearDatabase.ProcessArguments.push('DROP DATABASE IF EXISTS proyecto_final; CREATE DATABASE proyecto_final;');
+
+  clearDatabase.Execute();
+  await clearDatabase.Finish();
+
+  const endTime = Date.now();
+  timers.mysql.fullDumpTime = endTime - startTime;
+  console.log(`Tiempo total de dump y vaciado de MYSQL completo en: ${(timers.mysql.fullDumpTime)} ms`);
+
+
+  /*
+    * Tiempo que toma importar de nuevo
+    * el dump completo de MYSQL
+    * */
+
+  const fullDumpImport = new Process(MYSQL_PROCESS);
+  fullDumpImport.ProcessArguments.push(`-u${DB_USER}`);
+  fullDumpImport.ProcessArguments.push(`--password=${DB_PWD}`);
+  fullDumpImport.ProcessArguments.push(`--database=proyecto_final`);
+  fullDumpImport.Execute();
+  fullDumpImport.Write(`SOURCE ${SECURE_FILE_PATH}fullDump.sql`);
+  fullDumpImport.End();
+  await fullDumpImport.Finish();
+  if (fullDumpImport.ErrorsLog) console.error(`Error during export: ${fullDumpImport.ErrorsLog}`);
+  timers.mysql.fullDumpImportTime = fullDumpImport.EndTime - fullDumpImport.StartTime;
+  console.log(`Tiempo de importación de dump completo de MYSQL: ${(timers.mysql.fullDumpImportTime)}`);
 })()
