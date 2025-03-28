@@ -23,8 +23,8 @@ const timers = {
 
     const files = [
       'licencias.txt', 
-      'autoresCSV.txt', 
-      'librosCSV.txt',
+//      'autoresCSV.txt',
+//      'librosCSV.txt',
       'autores.txt',
       'autoresBackup.txt',
       'librosBackup.txt',
@@ -171,7 +171,7 @@ const timers = {
     console.log(`[9] Tiempo de la consulta compleja: ${(timers.mysql.complexQueryTime)} segundos`);
 
     /*TODO: Ambas tablas a csv*/
-    const bothToCsv = new Process(MYSQL_PROCESS);
+/*    const bothToCsv = new Process(MYSQL_PROCESS);
     bothToCsv.ProcessArguments.push(`-u${DB_USER}`);
     bothToCsv.ProcessArguments.push(`--password=${DB_PWD}`);
     bothToCsv.Execute();
@@ -181,7 +181,7 @@ const timers = {
     await bothToCsv.Finish();
     if (bothToCsv.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${bothToCsv.ErrorsLog}`);
     timers.mysql.bothToCsvTime = (bothToCsv.EndTime - bothToCsv.StartTime)/1000;
-    console.log(`[10] Tiempo que toma exportar ambas tablas a CSV: ${(timers.mysql.bothToCsvTime)} segundos`);
+    console.log(`[10] Tiempo que toma exportar ambas tablas a CSV: ${(timers.mysql.bothToCsvTime)} segundos`);*/
 
   /*
     *  El tiempo que toma respaldar ambas tablas a MongoDB, eliminarlas de MySQL, exportar 
@@ -194,7 +194,6 @@ const timers = {
     
     // Iniciar contador de tiempo del primer punto
     // Abarca 4 bloques de procesos
-    start = Date.now();
 
     const tablesBackup = new Process(MYSQL_PROCESS);
     tablesBackup.ProcessArguments.push(`-u${DB_USER}`);
@@ -229,11 +228,14 @@ const timers = {
     tablesBackup.End();
     await tablesBackup.Finish();
     if (tablesBackup.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${tablesBackup.ErrorsLog}`);
+    timers.mysql.tablesBackupTime = (tablesBackup.EndTime - tablesBackup.StartTime)/1000;
+    console.log(`[10] Tiempo que toma exportar ambas tablas a CSV: ${(timers.mysql.tablesBackupTime)} segundos`);
 
   /*
     * Tiempo que toma eliminar las tablas de MySQL
     * */
 
+    start = Date.now();
     const dropTables = new Process(MYSQL_PROCESS);
     dropTables.ProcessArguments.push(`-u${DB_USER}`);
     dropTables.ProcessArguments.push(`--password=${DB_PWD}`);
