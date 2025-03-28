@@ -58,7 +58,7 @@ const timers = {
     fs.writeFileSync(FS_PATH + 'autores.txt', CsvGen.generateAuthorsCSVData(NUM_2, uniqueIds, uniqueLicences));
     end = Date.now();
     timers.mysql.authorsGenerationTime = (end - start)/1000;
-    console.log(`[1] Tiempo en crear 100,000 Autores: ${timers.mysql.authorsGenerationTime} segundos`);
+    console.log(`[1] Tiempo en crear 150,000 Autores: ${timers.mysql.authorsGenerationTime} segundos`);
 
     start = Date.now();
     fs.writeFileSync(FS_PATH + 'libros.txt', CsvGen.generateBooksCSVData(NUM, uniqueLicences, uniqueIds, FS_PATH));
@@ -102,7 +102,7 @@ const timers = {
     getLicenses.End();
     await getLicenses.Finish();
     if (getLicenses.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${getLicenses.ErrorsLog}`);
-    timers.mysql.getLicensesTime = (getLicenses.EndTime - getLicenses.StartTime)/1000;
+    //timers.mysql.getLicensesTime = (getLicenses.EndTime - getLicenses.StartTime)/1000;
 
     const existingLicenses = fs.readFileSync(FS_PATH + 'licencias.txt', 'utf-8')
         .split('\n')
