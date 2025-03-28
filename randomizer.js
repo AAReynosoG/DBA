@@ -27,23 +27,19 @@ class Randomizer {
     }
 
     static generateUniqueIds(size) {
-        console.log("Generando IDs únicos");
         const uniqueIds = new Set();
         while (uniqueIds.size < size) {
             uniqueIds.add(Randomizer.randomNumber(1, 1_000_050));
         }
-        console.log("IDs únicos generados");
         return Array.from(uniqueIds);
     }
 
     static generateUniqueLicences(size) {
-        console.log("Generando licencias únicas");
         const uniqueLicences = new Set();
         while (uniqueLicences.size < size) {
             //uniqueLicences.add(Randomizer.randomText(Randomizer.randomNumber(1, 12)));
             uniqueLicences.add(Randomizer.generateUniqueLicenceB64());
         }
-        console.log("Licencias únicas generadas");
         return Array.from(uniqueLicences);
     }
 }

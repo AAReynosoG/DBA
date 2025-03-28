@@ -10,34 +10,43 @@ const timers = {
     mongo: {}
 };
 
-
 (async () => {
     const DB_USER = env.DB_USER;
     const DB_PWD = env.DB_PASSWORD;
     const FS_PATH = env.FS_PATH;
     const SECURE_FILE_PATH = env.SECURE_FILE_PATH;
     const MYSQL_PROCESS = env.MYSQL_PROCESS;
+    const DEBUG_MODE = false;
 
     let start;
     let end;
 
 
-    
-    fs.unlink(FS_PATH + 'licencias.txt', (err) => {
-        if (err) {
-            console.error(`Error al borrar archivo de licencias: ${err}`)
-        }
-    });
+    const files = [
+      'licencias.txt', 
+      'autoresCSV.txt', 
+      'librosCSV.txt',
+      'autores.txt',
+      'autoresBackup.txt',
+      'librosBackup.txt',
+      'autoresMongoBackup.txt',
+      'librosMongoBackup.txt',
+      'fullDump.sql',
+      'mongo1mBooks.txt',
+      'mongo1mBooksExportFields.csv'
+    ];
 
-    fs.unlink(FS_PATH + 'autoresCSV.txt', (err) => {
-        if (err) {
-            console.error(`Error al borrar archivo de autoresCSV: ${err}`)
-        }
-    });
+    files.forEach(file => {
+        const filePath = FS_PATH + file;
 
-    fs.unlink(FS_PATH + 'librosCSV.txt', (err) => {
-        if (err) {
-            console.error(`Error al borrar archivo de librosCSV: ${err}`)
+        if (fs.existsSync(filePath)) {
+            fs.unlink(filePath, (err) => {
+                if (err) {
+                    console.error(`Error al borrar archivo ${file}: ${err}`);
+                } else {
+                    console.log(`Archivo ${file} eliminado correctamente.`);
+                }
+            });
         }
     });
 
@@ -46,16 +55,17 @@ const timers = {
     const uniqueIds = Randomizer.generateUniqueIds(NUM);
     const uniqueLicences = Randomizer.generateUniqueLicences(NUM_2);
 
+    start = Date.now();
     fs.writeFileSync(FS_PATH + 'autores.txt', CsvGen.generateAuthorsCSVData(NUM_2, uniqueIds, uniqueLicences));
-    console.log("Archivo de autores generado");
+    end = Date.now();
+    timers.mysql.authorsGenerationTime = (end - start)/1000;
+    console.log(`[1] Tiempo en crear 100,000 Autores: ${timers.mysql.authorsGenerationTime} segundos`);
 
     start = Date.now();
     fs.writeFileSync(FS_PATH + 'libros.txt', CsvGen.generateBooksCSVData(NUM, uniqueLicences, uniqueIds, FS_PATH));
     end = Date.now();
     timers.mysql.booksGenerationTime = (end - start)/1000;
-
-    console.log(`Tiempo de generación de libros: ${timers.mysql.booksGenerationTime} segundos`);
-    console.log("Archivo de libros generado");
+    console.log(`[2] Tiempo en crear 100,000 libros: ${timers.mysql.booksGenerationTime} segundos`);
 
 
     /*TODO: Cargar información de Autores necesaria para generar libros.*/
@@ -66,9 +76,9 @@ const timers = {
     csvDataToAuthor.Write(`LOAD DATA INFILE '${SECURE_FILE_PATH}autores.txt' INTO TABLE proyecto_final.Autor FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' (license, name, lastName, secondLastName, year) SET id = UUID_SHORT() % 4294967295;`);
     csvDataToAuthor.End();
     await csvDataToAuthor.Finish();
-    if (csvDataToAuthor.ErrorsLog) console.error(`Error during export: ${csvDataToAuthor.ErrorsLog}`);
+    if (csvDataToAuthor.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${csvDataToAuthor.ErrorsLog}`);
     timers.mysql.csvDataToAuthorTime = (csvDataToAuthor.EndTime - csvDataToAuthor.StartTime)/1000;
-    console.log(`Tiempo de CSV a Autor: ${(timers.mysql.csvDataToAuthorTime)}`);
+    console.log(`[3] Insertar datos a tabla Autor: ${(timers.mysql.csvDataToAuthorTime)} segundos`);
 
 
     /*TODO: Cargar archivo csv con 100k datos a Libros*/
@@ -79,9 +89,9 @@ const timers = {
     csvDataToBook.Write(`LOAD DATA INFILE '${SECURE_FILE_PATH}libros.txt' INTO TABLE proyecto_final.Libro FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' (ISBN, title, autor_license, editorial, pages, year, genre, language, format, sinopsis, content) SET id = UUID_SHORT() % 4294967295;`);
     csvDataToBook.End();
     await csvDataToBook.Finish();
-    if (csvDataToBook.ErrorsLog) console.error(`Error during export: ${csvDataToBook.ErrorsLog}`);
+    if (csvDataToBook.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${csvDataToBook.ErrorsLog}`);
     timers.mysql.csvDataToBookTime = (csvDataToBook.EndTime - csvDataToBook.StartTime)/1000;
-    console.log(`Tiempo de CSV a Libro: ${(timers.mysql.csvDataToBookTime)}`);
+    console.log(`[4] Insertar datos en tabla Libro: ${(timers.mysql.csvDataToBookTime)} segundos`);
 
 
     /*TODO: Obtener licencias existentes*/
@@ -92,9 +102,8 @@ const timers = {
     getLicenses.Write(`SELECT license FROM proyecto_final.Autor INTO OUTFILE '${SECURE_FILE_PATH}licencias.txt' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';`);
     getLicenses.End();
     await getLicenses.Finish();
-    if (getLicenses.ErrorsLog) console.error(`Error during export: ${getLicenses.ErrorsLog}`);
+    if (getLicenses.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${getLicenses.ErrorsLog}`);
     timers.mysql.getLicensesTime = (getLicenses.EndTime - getLicenses.StartTime)/1000;
-    console.log(`Tiempo de obtener licencias: ${(timers.mysql.getLicensesTime)}`);
 
     const existingLicenses = fs.readFileSync(FS_PATH + 'licencias.txt', 'utf-8')
         .split('\n')
@@ -108,7 +117,7 @@ const timers = {
     }
     end = Date.now()
     timers.mysql.stressTime = (end - start)/1000
-    console.log(`Tiempo en estresar la BD: ${timers.mysql.stressTime}`)
+    console.log(`[6] Estresar la base de datos con 3,500 libros: ${timers.mysql.stressTime} segundos`)
 
 
     /*TODO: Generar 100 archivos con 1000 de libros registros cada uno.*/
@@ -120,7 +129,7 @@ const timers = {
     }
     end = Date.now()
     timers.mysql.oneHundredBookFilesTimer = (end - start)/1000
-    console.log(`Tiempo en generar 100 archivos de libros: ${timers.mysql.oneHundredBookFilesTimer}`)
+    console.log(`[7] Tiempo que toma generar 100 archivos: ${timers.mysql.oneHundredBookFilesTimer} segundos`)
 
 
     /*TODO: Esos 100 archivos exportarlos a MYSQL*/
@@ -133,11 +142,11 @@ const timers = {
         csvDataToBook.Write(`LOAD DATA INFILE '${SECURE_FILE_PATH}libros${i}.txt' INTO TABLE proyecto_final.Libro FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' (ISBN, title, autor_license, editorial, pages, year, genre, language, format, sinopsis, content) SET id = UUID_SHORT() % 4294967295;`);
         csvDataToBook.End();
         await csvDataToBook.Finish();
-        if (csvDataToBook.ErrorsLog) console.error(`Error during export: ${csvDataToBook.ErrorsLog}`);
+        if (csvDataToBook.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${csvDataToBook.ErrorsLog}`);
     }
     end = Date.now()
     timers.mysql.oneHundredBookFilesToMysqlTimer = (end - start)/1000
-    console.log(`Tiempo en exportar 100 archivos de libros a MySQL: ${timers.mysql.oneHundredBookFilesToMysqlTimer}`)
+    console.log(`[8] Tiempo que toma insertar 100 archivos to MYSLQ: ${timers.mysql.oneHundredBookFilesToMysqlTimer} segundos`)
 
 
     /*TODO: El mayor número de paginas, menor número de páginas, el promedio de número de páginas, el año más cercano a la actualidad, el año más antigüo, y el número total de libros.*/
@@ -157,10 +166,10 @@ const timers = {
         COUNT(*) FROM proyecto_final.Libro;`);
     complexQuery.End();
     await complexQuery.Finish();
-    console.log(`Logs: ${complexQuery.Logs}`);
-    if (complexQuery.ErrorsLog) console.error(`Error during export: ${complexQuery.ErrorsLog}`);
+    console.log(`Logs: ${complexQuery.Logs} `);
+    if (complexQuery.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${complexQuery.ErrorsLog}`);
     timers.mysql.complexQueryTime = (complexQuery.EndTime - complexQuery.StartTime)/1000;
-    console.log(`Tiempo de la consulta compleja: ${(timers.mysql.complexQueryTime)}`);
+    console.log(`[9] Tiempo de la consulta compleja: ${(timers.mysql.complexQueryTime)} segundos`);
 
     /*TODO: Ambas tablas a csv*/
     const bothToCsv = new Process(MYSQL_PROCESS);
@@ -171,9 +180,9 @@ const timers = {
     bothToCsv.Write(`SELECT * FROM proyecto_final.Libro INTO OUTFILE '${SECURE_FILE_PATH}librosCSV.txt' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';`);
     bothToCsv.End();
     await bothToCsv.Finish();
-    if (bothToCsv.ErrorsLog) console.error(`Error during export: ${bothToCsv.ErrorsLog}`);
+    if (bothToCsv.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${bothToCsv.ErrorsLog}`);
     timers.mysql.bothToCsvTime = (bothToCsv.EndTime - bothToCsv.StartTime)/1000;
-    console.log(`Tiempo tras mandar ambas tablas a csv: ${(timers.mysql.bothToCsvTime)}`);
+    console.log(`[10] Tiempo que toma exportar ambas tablas a CSV: ${(timers.mysql.bothToCsvTime)} segundos`);
 
   /*
     *  El tiempo que toma respaldar ambas tablas a MongoDB, eliminarlas de MySQL, exportar 
@@ -183,6 +192,10 @@ const timers = {
   /*
     * Tiempo que toma respaldar ambas tablas a MongoDB
     * */
+    
+    // Iniciar contador de tiempo del primer punto
+    // Abarca 4 bloques de procesos
+    start = Date.now();
 
     const tablesBackup = new Process(MYSQL_PROCESS);
     tablesBackup.ProcessArguments.push(`-u${DB_USER}`);
@@ -201,7 +214,7 @@ const timers = {
     `);
     tablesBackup.End();
     await tablesBackup.Finish();
-    if (tablesBackup.ErrorsLog) console.error(`Error during export: ${tablesBackup.ErrorsLog}`);
+    if (tablesBackup.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${tablesBackup.ErrorsLog}`);
 
     tablesBackup.Execute();
     tablesBackup.Write(`
@@ -216,9 +229,7 @@ const timers = {
     `); 
     tablesBackup.End();
     await tablesBackup.Finish();
-    if (tablesBackup.ErrorsLog) console.error(`Error during export: ${tablesBackup.ErrorsLog}`);
-    timers.mysql.tablesBackupTime = tablesBackup.EndTime - tablesBackup.StartTime;
-    console.log(`Tiempo de respaldo de tablas: ${(timers.mysql.tablesBackupTime)}`);
+    if (tablesBackup.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${tablesBackup.ErrorsLog}`);
 
   /*
     * Tiempo que toma eliminar las tablas de MySQL
@@ -231,14 +242,12 @@ const timers = {
     dropTables.Write(`DELETE FROM proyecto_final.Libro;`);
     dropTables.End();
     await dropTables.Finish();
-    if (dropTables.ErrorsLog) console.error(`Error during export: ${dropTables.ErrorsLog}`);
+    if (dropTables.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${dropTables.ErrorsLog}`);
     dropTables.Execute();
     dropTables.Write(`DELETE FROM proyecto_final.Autor;`);
     dropTables.End();
     await dropTables.Finish();
-    if (dropTables.ErrorsLog) console.error(`Error during export: ${dropTables.ErrorsLog}`);
-    timers.mysql.dropTablesTime = dropTables.EndTime - dropTables.StartTime;
-    console.log(`Tiempo de eliminación de tablas: ${(timers.mysql.dropTablesTime)}`);
+    if (dropTables.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${dropTables.ErrorsLog}`);
 
 
   /*
@@ -258,9 +267,7 @@ const timers = {
     authorMongoBackup.ProcessArguments.push('--headerline');
     authorMongoBackup.Execute();
     await authorMongoBackup.Finish();
-    if (authorMongoBackup.ErrorsLog) console.error(`Error during export: ${authorMongoBackup.ErrorsLog}`);
-    timers.mongo.mongoBackupTime = authorMongoBackup.EndTime - authorMongoBackup.StartTime;
-    console.log(`Tiempo de respaldo de MongoDB: ${(timers.mongo.mongoBackupTime)}`);
+    if (authorMongoBackup.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${authorMongoBackup.ErrorsLog}`);
 
     const bookMongoBackup = new Process('mongoimport');
     bookMongoBackup.ProcessArguments.push(`--username=${env.MONGO_USER}`);
@@ -273,9 +280,7 @@ const timers = {
     bookMongoBackup.ProcessArguments.push('--headerline');
     bookMongoBackup.Execute();
     await bookMongoBackup.Finish();
-    if (bookMongoBackup.ErrorsLog) console.error(`Error during export: ${bookMongoBackup.ErrorsLog}`);
-    timers.mongo.mongoBackupTime = bookMongoBackup.EndTime - bookMongoBackup.StartTime;
-    console.log(`Tiempo de respaldo de MongoDB: ${(timers.mongo.mongoBackupTime)}`);
+    if (bookMongoBackup.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${bookMongoBackup.ErrorsLog}`);
 
     
   /*
@@ -294,9 +299,7 @@ const timers = {
     authorMongoExport.ProcessArguments.push(`--out=${SECURE_FILE_PATH}autoresMongoBackup.txt`);
     authorMongoExport.Execute();
     await authorMongoExport.Finish();
-    if (authorMongoExport.ErrorsLog) console.error(`Error during export: ${authorMongoExport.ErrorsLog}`);
-    timers.mongo.mongoExportTime = authorMongoExport.EndTime - authorMongoExport.StartTime;
-    console.log(`Tiempo de exportación de MongoDB: ${(timers.mongo.mongoExportTime)}`);
+    if (authorMongoExport.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${authorMongoExport.ErrorsLog}`);
 
 
     const bookMongoExport = new Process('mongoexport');
@@ -310,9 +313,7 @@ const timers = {
     bookMongoExport.ProcessArguments.push(`--out=${SECURE_FILE_PATH}librosMongoBackup.txt`);
     bookMongoExport.Execute();
     await bookMongoExport.Finish();
-    if (bookMongoExport.ErrorsLog) console.error(`Error during export: ${bookMongoExport.ErrorsLog}`);
-    timers.mongo.mongoExportTime = bookMongoExport.EndTime - bookMongoExport.StartTime;
-    console.log(`Tiempo de exportación de MongoDB: ${(timers.mongo.mongoExportTime)}`);
+    if (bookMongoExport.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${bookMongoExport.ErrorsLog}`);
 
 
   /*
@@ -335,9 +336,7 @@ const timers = {
 
   authorMongoRestore.End();
   await authorMongoRestore.Finish();
-  if (authorMongoRestore.ErrorsLog) console.error(`Error during export: ${authorMongoRestore.ErrorsLog}`);
-  timers.mongo.mongoRestoreTime = authorMongoRestore.EndTime - authorMongoRestore.StartTime;
-  console.log(`Tiempo de restauración de MongoDB: ${(timers.mongo.mongoRestoreTime)}`);
+  if (authorMongoRestore.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${authorMongoRestore.ErrorsLog}`);
 
   const bookMongoRestore = new Process(MYSQL_PROCESS);
   bookMongoRestore.ProcessArguments.push(`-u${DB_USER}`);
@@ -353,17 +352,22 @@ const timers = {
   `);
   bookMongoRestore.End();
   await bookMongoRestore.Finish();
-  if (bookMongoRestore.ErrorsLog) console.error(`Error during export: ${bookMongoRestore.ErrorsLog}`);
-  timers.mongo.mongoRestoreTime = bookMongoRestore.EndTime - bookMongoRestore.StartTime;
-  console.log(`Tiempo de restauración de MongoDB: ${(timers.mongo.mongoRestoreTime)}`);
+  if (bookMongoRestore.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${bookMongoRestore.ErrorsLog}`);
+
+  end = Date.now();
+  timers.mysql.backupAndRestoreTime = (end - start) / 1000;
+  console.log(`[11] Tiempo total de respaldo y restauración de MongoDB a MySQL: ${(timers.mysql.backupAndRestoreTime)} segundos`);
 
 
+  /**********************************************************************/
   /*
     * Tiempo total que toma realizar un dump completo de la base de datos de MySQL
     * y luego borrar su contenido (vaciar tablas o eliminar la base de datos)
     * */
+  /**********************************************************************/
 
-  const startTime = Date.now();
+
+  start = Date.now();
   const fullDump = new Process('mysqldump');
   fullDump.ProcessArguments.push(`-u${DB_USER}`);
   fullDump.ProcessArguments.push(`--password=${DB_PWD}`);
@@ -381,17 +385,19 @@ const timers = {
 
   clearDatabase.Execute();
   await clearDatabase.Finish();
+  end = Date.now();
+  timers.mysql.fullDumpTime = (end - start) / 1000;
+  console.log(`[12] Tiempo total de dump completo de MySQL : ${(timers.mysql.fullDumpTime)} segundos`);
 
-  const endTime = Date.now();
-  timers.mysql.fullDumpTime = endTime - startTime;
-  console.log(`Tiempo total de dump y vaciado de MYSQL completo en: ${(timers.mysql.fullDumpTime)} ms`);
 
-
+  /**********************************************************************/
   /*
     * Tiempo que toma importar de nuevo
     * el dump completo de MYSQL
     * */
-
+  /**********************************************************************/
+  
+  start = Date.now();
   const fullDumpImport = new Process(MYSQL_PROCESS);
   fullDumpImport.ProcessArguments.push(`-u${DB_USER}`);
   fullDumpImport.ProcessArguments.push(`--password=${DB_PWD}`);
@@ -400,17 +406,20 @@ const timers = {
   fullDumpImport.Write(`SOURCE ${SECURE_FILE_PATH}fullDump.sql`);
   fullDumpImport.End();
   await fullDumpImport.Finish();
-  if (fullDumpImport.ErrorsLog) console.error(`Error during export: ${fullDumpImport.ErrorsLog}`);
-  timers.mysql.fullDumpImportTime = fullDumpImport.EndTime - fullDumpImport.StartTime;
-  console.log(`Tiempo de importación de dump completo de MYSQL: ${(timers.mysql.fullDumpImportTime)}`);
+  if (fullDumpImport.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${fullDumpImport.ErrorsLog}`);
+  end = Date.now();
+  timers.mysql.fullDumpImportTime = (end - start) / 1000;
+  console.log(`[13] Tiempo total de importar dump completo de MySQL : ${(timers.mysql.fullDumpImportTime)} segundos`);
 
 
-    /*
-      * 
-      * Calcular el tiempo cuando el usuario C intenta insertar 
-      * en la tabla Autor
-      * */
-
+  /**********************************************************************/
+  /*
+    * 
+    * Calcular el tiempo cuando el usuario C intenta insertar 
+    * en la tabla Autor
+    * */
+  /**********************************************************************/
+    start = Date.now();
     const userCInsert = new Process(MYSQL_PROCESS);
     userCInsert.ProcessArguments.push('-uC');
     userCInsert.ProcessArguments.push('-ptoken1234')
@@ -422,15 +431,19 @@ const timers = {
 
     userCInsert.Execute();
     await userCInsert.Finish();
-    timers.mysql.userCInsertTime = userCInsert.EndTime - userCInsert.StartTime;
-    console.log(`Tiempo de error de inserción de usuario C en Autor: ${(timers.mysql.userCInsertTime)}`);
+    end = Date.now();
+    timers.mysql.userCInsertTime = (end - start) / 1000;
+    console.log(`[14] Tiempo de error de inserccion en tabla Autor: ${(timers.mysql.userCInsertTime)} segundos`);
 
+  /**********************************************************************/
     /*
       * 
       * Calcular el tiempo cuando el usuario C intenta insertar 
       * en la tabla Libro
       * */
 
+  /**********************************************************************/
+    start = Date.now();
     const userCInsertBook = new Process(MYSQL_PROCESS);
     userCInsertBook.ProcessArguments.push('-uC');
     userCInsertBook.ProcessArguments.push('-ptoken1234')
@@ -439,24 +452,96 @@ const timers = {
       INSERT INTO proyecto_final.Libro 
       (ISBN, title, autor_license, editorial, pages, year, genre, language, format, sinopsis, content) 
       VALUES ('UUID()', 'El libro de Juan', '123456', 'Editorial', 100, 1990, 'Fantasia', 'Español', 'PDF', 'Sinopsis', 'Contenido');`);
-
     userCInsertBook.Execute();
     await userCInsertBook.Finish();
-    timers.mysql.userCInsertBookTime = userCInsertBook.EndTime - userCInsertBook.StartTime;
-    console.log(`Tiempo de error de inserccion en tabla Libro: ${(timers.mysql.userCInsertBookTime)}`);
+    end = Date.now();
+    timers.mysql.userCInsertBookTime = (end - start) / 1000;
+    console.log(`[15] Tiempo de error de inserccion en tabla Libro: ${(timers.mysql.userCInsertBookTime)} segundos`);
 
-
+  /**********************************************************************/
   /*
-    * Generar 100k de datos para MongoDB
+    * Generar 1m de datos para MongoDB
     */
+    console.log('Generando 1m de datos para MongoDB......');
+  /**********************************************************************/
+    // Iniciar contador de tiemo para 1m de datos 
+    // Abarca 2 bloques de procesos
     start = Date.now();
     const QUANTITY = 1_000_000;
-    const QUANTITY_2 = 1_000_000;
-    const ID_UNIQUE = Randomizer.generateUniqueIds(QUANTITY);
-    const LICENCES_UNIQUE = Randomizer.generateUniqueLicences(QUANTITYtimers_2);
-    CsvGen.generateBooksCSVDataByThreads(1000000, LICENCES_UNIQUE, 10, FS_PATH + 'mongo1mBooks.txt')
+    const LICENCES_UNIQUE = Randomizer.generateUniqueLicences(QUANTITY);
+    await CsvGen.generateBooksCSVDataByThreads(1000000, LICENCES_UNIQUE, 10, FS_PATH + 'mongo1mBooks.txt')
+
+  /**********************************************************************/
+  /*
+  * Cargar los datos de Libros a MongoDB
+  * */
+    console.log('Cargando los datos de Libros a MongoDB......');
+  /**********************************************************************/
+    const mongoLoadData = new Process('mongoimport');
+    mongoLoadData.ProcessArguments.push(`--username=${env.MONGO_USER}`);
+    mongoLoadData.ProcessArguments.push(`--password=${env.MONGO_PASSWORD}`);
+    mongoLoadData.ProcessArguments.push(`--authenticationDatabase=${env.MONGO_AUTH_DATABASE}`);
+    mongoLoadData.ProcessArguments.push('--db=proyecto_final');
+    mongoLoadData.ProcessArguments.push('--collection=Libro');
+    mongoLoadData.ProcessArguments.push('--type=csv');
+    mongoLoadData.ProcessArguments.push(`--file=${FS_PATH}mongo1mBooks.txt`);
+    mongoLoadData.ProcessArguments.push('--headerline')
+    mongoLoadData.Execute()
+    await mongoLoadData.Finish()
+    if (mongoLoadData.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${mongoLoadData.ErrorsLog}`);
+    // Terminar contador de tiempo para 1m de datos
     end = Date.now();
-    console.log(`Tiempo de generación de libros para MongoDB: ${(end - start)/1000} segundos`);
+    timers.mongo.mongoLoadDataTime = (end - start) / 1000;
+    console.log(`[16] Tiempo de carga de 1m de datos a MongoDB: ${(timers.mongo.mongoLoadDataTime)} segundos`);
 
 
+  /**********************************************************************/
+  /*
+    * Exportar solo los campos ISBN, year y pages 
+    * en un solo csv
+    * */
+    console.log('Exportando solo los fields ISBN, year, pages......');
+  /**********************************************************************/
+
+  const mongoExportBookData = new Process('mongoexport');
+  mongoExportBookData.ProcessArguments.push(`--username=${env.MONGO_USER}`);
+  mongoExportBookData.ProcessArguments.push(`--password=${env.MONGO_PASSWORD}`);
+  mongoExportBookData.ProcessArguments.push(`--authenticationDatabase=${env.MONGO_AUTH_DATABASE}`);
+  mongoExportBookData.ProcessArguments.push('--db=proyecto_final');
+  mongoExportBookData.ProcessArguments.push('--collection=Libro');
+  mongoExportBookData.ProcessArguments.push('--type=csv');
+  mongoExportBookData.ProcessArguments.push('--fields=ISBN,year,pages');
+  mongoExportBookData.ProcessArguments.push(`--out=${FS_PATH}mongo1mBooksExportFields.csv`);
+  mongoExportBookData.Execute();
+  await mongoExportBookData.Finish();
+  if (mongoExportBookData.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${mongoExportBookData.ErrorsLog}`);
+  timers.mongo.mongoExportBookDataTime = (mongoExportBookData.EndTime - mongoExportBookData.StartTime) / 1000;
+  console.log(`[17] Tiempo en exportar solo los fields ISBN, year, pages: ${(timers.mongo.mongoExportBookDataTime)} segundos`);
+
+  /**********************************************************************/
+  /*
+    * Importar los datos exportados de mongo a 
+    * MySQL en la tabla old_boooks
+    * */
+  /**********************************************************************/
+
+  const mongoImportBookData = new Process(MYSQL_PROCESS);
+  mongoImportBookData.ProcessArguments.push(`-u${DB_USER}`);
+  mongoImportBookData.ProcessArguments.push(`--password=${DB_PWD}`);
+  mongoImportBookData.Execute();
+  mongoImportBookData.Write(`
+    LOAD DATA INFILE '${FS_PATH}mongo1mBooksExportFields.csv' 
+    INTO TABLE proyecto_final.old_books 
+    FIELDS TERMINATED BY ',' 
+    ENCLOSED BY '"'
+    LINES TERMINATED BY '\n'
+    IGNORE 1 ROWS;
+  `);
+  mongoImportBookData.End();
+  await mongoImportBookData.Finish();
+  if (mongoImportBookData.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${mongoImportBookData.ErrorsLog}`);
+  timers.mongo.mongoImportBookDataTime = (mongoImportBookData.EndTime - mongoImportBookData.StartTime) / 1000;
+  console.log(`[18] Tiempo en agreagar los datos a la tabla old_books: ${(timers.mongo.mongoImportBookDataTime)} segundos`);
+
+  /**********************************************************************/
 })()
