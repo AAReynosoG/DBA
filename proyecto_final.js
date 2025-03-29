@@ -520,6 +520,28 @@ const timers = {
   timers.mongo.mongoExportBookDataTime = (end - start) / 1000;
   console.log(`[17] Tiempo en exportar solo los fields ISBN, year, pages: ${(timers.mongo.mongoExportBookDataTime)} segundos`);
 
+
+  /**********************************************************************/
+  /*
+    * Crear la tabla old_boooks 
+    * */
+  /**********************************************************************/
+  const createTable = new Process(MYSQL_PROCESS);
+  createTable.ProcessArguments.push(`-u${DB_USER}`);
+  createTable.ProcessArguments.push(`--password=${DB_PWD}`);
+  createTable.Execute();
+  createTable.Write(`
+      CREATE TABLE proyecto_final.old_books (
+          ISBN VARCHAR(255) NOT NULL,
+          year VARCHAR(255) NOT NULL,
+          pages VARCHAR(255) NOT NULL
+      );
+  `);
+  createTable.End();
+  await createTable.Finish();
+  if (createTable.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${createTable.ErrorsLog}`);
+
+
   /**********************************************************************/
   /*
     * Importar los datos exportados de mongo a 
