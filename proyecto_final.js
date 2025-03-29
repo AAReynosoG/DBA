@@ -22,16 +22,16 @@ const timers = {
     let end;
 
     const files = [
-      'licencias.txt', 
-//      'autoresCSV.txt',
-//      'librosCSV.txt',
-      'autores.txt',
-      'autoresBackup.txt',
-      'librosBackup.txt',
-      'autoresMongoBackup.txt',
-      'librosMongoBackup.txt',
+      'licencias.csv',
+//      'autoresCSV.csv',
+//      'librosCSV.csv',
+      'autores.csv',
+      'autoresBackup.csv',
+      'librosBackup.csv',
+      'autoresMongoBackup.csv',
+      'librosMongoBackup.csv',
       'fullDump.sql',
-      'mongo1mBooks.txt',
+      'mongo1mBooks.csv',
       'mongo1mBooksExportFields.csv'
     ];
 
@@ -54,14 +54,27 @@ const timers = {
     const uniqueIds = Randomizer.generateUniqueIds(NUM);
     const uniqueLicences = Randomizer.generateUniqueLicences(NUM_2);
 
+
+    const tablesManagement = new Process(MYSQL_PROCESS);
+    tablesManagement.ProcessArguments.push(`-u${DB_USER}`);
+    tablesManagement.ProcessArguments.push(`--password=${DB_PWD}`);
+    tablesManagement.Execute();
+    tablesManagement.Write("CREATE TABLE IF NOT EXISTS proyecto_final.Autor(id BIGINT UNIQUE, license VARCHAR(12) NOT NULL UNIQUE, name TINYTEXT NOT NULL, lastName TINYTEXT, secondLastName TINYTEXT, year SMALLINT);");
+    tablesManagement.Write("CREATE TABLE IF NOT EXISTS proyecto_final.Libro (id BIGINT UNIQUE, ISBN VARCHAR(16) NOT NULL, title VARCHAR(512) NOT NULL, autor_license VARCHAR(12), FOREIGN KEY (autor_license) REFERENCES Autor(license), editorial TINYTEXT, pages SMALLINT, year SMALLINT NOT NULL, genre TINYTEXT, language TINYTEXT NOT NULL, format TINYTEXT, sinopsis TEXT, content TEXT);");
+    tablesManagement.End();
+    await tablesManagement.Finish();
+    if (tablesManagement.ErrorsLog) console.error(`Error during execution: ${tablesManagement.ErrorsLog}`);
+    timers.mysql.tablesManagementTime = (tablesManagement.EndTime - tablesManagement.StartTime)/1000;
+    console.log(`[0] Tiempo en crear tablas Autor y Libro: ${(timers.mysql.tablesManagementTime)} segundos`);
+
     start = Date.now();
-    fs.writeFileSync(FS_PATH + 'autores.txt', CsvGen.generateAuthorsCSVData(NUM_2, uniqueIds, uniqueLicences));
+    fs.writeFileSync(FS_PATH + 'autores.csv', CsvGen.generateAuthorsCSVData(NUM_2, uniqueIds, uniqueLicences));
     end = Date.now();
     timers.mysql.authorsGenerationTime = (end - start)/1000;
     console.log(`[1] Tiempo en crear 150,000 Autores: ${timers.mysql.authorsGenerationTime} segundos`);
 
     start = Date.now();
-    fs.writeFileSync(FS_PATH + 'libros.txt', CsvGen.generateBooksCSVData(NUM, uniqueLicences, uniqueIds, FS_PATH));
+    fs.writeFileSync(FS_PATH + 'libros.csv', CsvGen.generateBooksCSVData(NUM, uniqueLicences, uniqueIds, FS_PATH));
     end = Date.now();
     timers.mysql.booksGenerationTime = (end - start)/1000;
     console.log(`[2] Tiempo en crear 100,000 libros: ${timers.mysql.booksGenerationTime} segundos`);
@@ -72,7 +85,7 @@ const timers = {
     csvDataToAuthor.ProcessArguments.push(`-u${DB_USER}`);
     csvDataToAuthor.ProcessArguments.push(`--password=${DB_PWD}`);
     csvDataToAuthor.Execute();
-    csvDataToAuthor.Write(`LOAD DATA INFILE '${SECURE_FILE_PATH}autores.txt' INTO TABLE proyecto_final.Autor FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' (license, name, lastName, secondLastName, year) SET id = UUID_SHORT() % 4294967295;`);
+    csvDataToAuthor.Write(`LOAD DATA INFILE '${SECURE_FILE_PATH}autores.csv' INTO TABLE proyecto_final.Autor FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' (license, name, lastName, secondLastName, year) SET id = UUID_SHORT() % 4294967295;`);
     csvDataToAuthor.End();
     await csvDataToAuthor.Finish();
     if (csvDataToAuthor.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${csvDataToAuthor.ErrorsLog}`);
@@ -85,7 +98,7 @@ const timers = {
     csvDataToBook.ProcessArguments.push(`-u${DB_USER}`);
     csvDataToBook.ProcessArguments.push(`--password=${DB_PWD}`);
     csvDataToBook.Execute();
-    csvDataToBook.Write(`LOAD DATA INFILE '${SECURE_FILE_PATH}libros.txt' INTO TABLE proyecto_final.Libro FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' (ISBN, title, autor_license, editorial, pages, year, genre, language, format, sinopsis, content) SET id = UUID_SHORT() % 4294967295;`);
+    csvDataToBook.Write(`LOAD DATA INFILE '${SECURE_FILE_PATH}libros.csv' INTO TABLE proyecto_final.Libro FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' (ISBN, title, autor_license, editorial, pages, year, genre, language, format, sinopsis, content) SET id = UUID_SHORT() % 4294967295;`);
     csvDataToBook.End();
     await csvDataToBook.Finish();
     if (csvDataToBook.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${csvDataToBook.ErrorsLog}`);
@@ -98,13 +111,13 @@ const timers = {
     getLicenses.ProcessArguments.push(`-u${DB_USER}`);
     getLicenses.ProcessArguments.push(`--password=${DB_PWD}`);
     getLicenses.Execute();
-    getLicenses.Write(`SELECT license FROM proyecto_final.Autor INTO OUTFILE '${SECURE_FILE_PATH}licencias.txt' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';`);
+    getLicenses.Write(`SELECT license FROM proyecto_final.Autor INTO OUTFILE '${SECURE_FILE_PATH}licencias.csv' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';`);
     getLicenses.End();
     await getLicenses.Finish();
     if (getLicenses.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${getLicenses.ErrorsLog}`);
     //timers.mysql.getLicensesTime = (getLicenses.EndTime - getLicenses.StartTime)/1000;
 
-    const existingLicenses = fs.readFileSync(FS_PATH + 'licencias.txt', 'utf-8')
+    const existingLicenses = fs.readFileSync(FS_PATH + 'licencias.csv', 'utf-8')
         .split('\n')
         .filter(license => license !== '');
 
@@ -124,7 +137,7 @@ const timers = {
     const RECORDS_QUANTITY = 1000;
     start = Date.now()
     for(let i = 0; i < FILES_QUANTITY; i++){
-        fs.writeFileSync(FS_PATH + `libros${i}.txt`, CsvGen.generateBooksCSVData(RECORDS_QUANTITY, existingLicenses, uniqueIds, FS_PATH));
+        fs.writeFileSync(FS_PATH + `libros${i}.csv`, CsvGen.generateBooksCSVData(RECORDS_QUANTITY, existingLicenses, uniqueIds, FS_PATH));
     }
     end = Date.now()
     timers.mysql.oneHundredBookFilesTimer = (end - start)/1000
@@ -138,7 +151,7 @@ const timers = {
         csvDataToBook.ProcessArguments.push(`-u${DB_USER}`);
         csvDataToBook.ProcessArguments.push(`--password=${DB_PWD}`);
         csvDataToBook.Execute();
-        csvDataToBook.Write(`LOAD DATA INFILE '${SECURE_FILE_PATH}libros${i}.txt' INTO TABLE proyecto_final.Libro FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' (ISBN, title, autor_license, editorial, pages, year, genre, language, format, sinopsis, content) SET id = UUID_SHORT() % 4294967295;`);
+        csvDataToBook.Write(`LOAD DATA INFILE '${SECURE_FILE_PATH}libros${i}.csv' INTO TABLE proyecto_final.Libro FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' (ISBN, title, autor_license, editorial, pages, year, genre, language, format, sinopsis, content) SET id = UUID_SHORT() % 4294967295;`);
         csvDataToBook.End();
         await csvDataToBook.Finish();
         if (csvDataToBook.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${csvDataToBook.ErrorsLog}`);
@@ -170,19 +183,6 @@ const timers = {
     timers.mysql.complexQueryTime = (complexQuery.EndTime - complexQuery.StartTime)/1000;
     console.log(`[9] Tiempo de la consulta compleja: ${(timers.mysql.complexQueryTime)} segundos`);
 
-    /*TODO: Ambas tablas a csv*/
-/*    const bothToCsv = new Process(MYSQL_PROCESS);
-    bothToCsv.ProcessArguments.push(`-u${DB_USER}`);
-    bothToCsv.ProcessArguments.push(`--password=${DB_PWD}`);
-    bothToCsv.Execute();
-    bothToCsv.Write(`SELECT * FROM proyecto_final.Autor INTO OUTFILE '${SECURE_FILE_PATH}autoresCSV.txt' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';`);
-    bothToCsv.Write(`SELECT * FROM proyecto_final.Libro INTO OUTFILE '${SECURE_FILE_PATH}librosCSV.txt' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';`);
-    bothToCsv.End();
-    await bothToCsv.Finish();
-    if (bothToCsv.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${bothToCsv.ErrorsLog}`);
-    timers.mysql.bothToCsvTime = (bothToCsv.EndTime - bothToCsv.StartTime)/1000;
-    console.log(`[10] Tiempo que toma exportar ambas tablas a CSV: ${(timers.mysql.bothToCsvTime)} segundos`);*/
-
   /*
     *  El tiempo que toma respaldar ambas tablas a MongoDB, eliminarlas de MySQL, exportar 
     *  el respaldo de MongoDB y restaurarlo en MySQL.
@@ -205,7 +205,7 @@ const timers = {
       UNION
       SELECT id, license, name, lastName, secondLastName, year
       FROM proyecto_final.Autor
-      INTO OUTFILE '${SECURE_FILE_PATH}autoresBackup.txt'
+      INTO OUTFILE '${SECURE_FILE_PATH}autoresBackup.csv'
       FIELDS TERMINATED BY ',' 
       ENCLOSED BY '"'
       LINES TERMINATED BY '\n';
@@ -220,7 +220,7 @@ const timers = {
       UNION
       SELECT id, ISBN, title, autor_license, editorial, pages, year, genre, language, format, sinopsis, content
       FROM proyecto_final.Libro
-      INTO OUTFILE '${SECURE_FILE_PATH}librosBackup.txt'
+      INTO OUTFILE '${SECURE_FILE_PATH}librosBackup.csv'
       FIELDS TERMINATED BY ',' 
       ENCLOSED BY '"'
       LINES TERMINATED BY '\n'
@@ -253,7 +253,7 @@ const timers = {
 
   /*
     * Tiempo que toma importar el respaldo de MongoDB
-    * Usa los arhicovs autoresBackup.txt y librosBackup.txt generados en el paso anterior
+    * Usa los arhicovs autoresBackup.csv y librosBackup.csv generados en el paso anterior
     * para importarlos a MongoDB
     * */
 
@@ -264,7 +264,7 @@ const timers = {
     authorMongoBackup.ProcessArguments.push('--db=proyecto_final');
     authorMongoBackup.ProcessArguments.push('--collection=Autor');
     authorMongoBackup.ProcessArguments.push('--type=csv');
-    authorMongoBackup.ProcessArguments.push(`--file=${SECURE_FILE_PATH}autoresBackup.txt`);
+    authorMongoBackup.ProcessArguments.push(`--file=${SECURE_FILE_PATH}autoresBackup.csv`);
     authorMongoBackup.ProcessArguments.push('--headerline');
     authorMongoBackup.Execute();
     await authorMongoBackup.Finish();
@@ -277,7 +277,7 @@ const timers = {
     bookMongoBackup.ProcessArguments.push('--db=proyecto_final');
     bookMongoBackup.ProcessArguments.push('--collection=Libro');
     bookMongoBackup.ProcessArguments.push('--type=csv');
-    bookMongoBackup.ProcessArguments.push(`--file=${SECURE_FILE_PATH}librosBackup.txt`);
+    bookMongoBackup.ProcessArguments.push(`--file=${SECURE_FILE_PATH}librosBackup.csv`);
     bookMongoBackup.ProcessArguments.push('--headerline');
     bookMongoBackup.Execute();
     await bookMongoBackup.Finish();
@@ -286,7 +286,7 @@ const timers = {
     
   /*
     * Tiempo que toma exportar el respaldo de MongoDB
-    * Exporta los datos de MongoDB a los archivos autoresMongoBackup.txt y librosMongoBackup.txt
+    * Exporta los datos de MongoDB a los archivos autoresMongoBackup.csv y librosMongoBackup.csv
     * */
 
     const authorMongoExport = new Process('mongoexport');
@@ -297,7 +297,7 @@ const timers = {
     authorMongoExport.ProcessArguments.push('--collection=Autor');
     authorMongoExport.ProcessArguments.push('--type=csv');
     authorMongoExport.ProcessArguments.push('--fields=id,license,name,lastName,secondLastName,year');
-    authorMongoExport.ProcessArguments.push(`--out=${SECURE_FILE_PATH}autoresMongoBackup.txt`);
+    authorMongoExport.ProcessArguments.push(`--out=${SECURE_FILE_PATH}autoresMongoBackup.csv`);
     authorMongoExport.Execute();
     await authorMongoExport.Finish();
     if (authorMongoExport.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${authorMongoExport.ErrorsLog}`);
@@ -311,7 +311,7 @@ const timers = {
     bookMongoExport.ProcessArguments.push('--collection=Libro');
     bookMongoExport.ProcessArguments.push('--type=csv');
     bookMongoExport.ProcessArguments.push('--fields=id,ISBN,title,autor_license,editorial,pages,year,genre,language,format,sinopsis,content');
-    bookMongoExport.ProcessArguments.push(`--out=${SECURE_FILE_PATH}librosMongoBackup.txt`);
+    bookMongoExport.ProcessArguments.push(`--out=${SECURE_FILE_PATH}librosMongoBackup.csv`);
     bookMongoExport.Execute();
     await bookMongoExport.Finish();
     if (bookMongoExport.ErrorsLog && DEBUG_MODE) console.error(`Error during export: ${bookMongoExport.ErrorsLog}`);
@@ -327,7 +327,7 @@ const timers = {
   authorMongoRestore.ProcessArguments.push(`--password=${DB_PWD}`);
   authorMongoRestore.Execute();
   authorMongoRestore.Write(`
-    LOAD DATA INFILE '${SECURE_FILE_PATH}autoresMongoBackup.txt' 
+    LOAD DATA INFILE '${SECURE_FILE_PATH}autoresMongoBackup.csv' 
     INTO TABLE proyecto_final.Autor 
     FIELDS TERMINATED BY ',' 
     ENCLOSED BY '"'
@@ -344,7 +344,7 @@ const timers = {
   bookMongoRestore.ProcessArguments.push(`--password=${DB_PWD}`);
   bookMongoRestore.Execute();
   bookMongoRestore.Write(`
-    LOAD DATA INFILE '${SECURE_FILE_PATH}librosMongoBackup.txt' 
+    LOAD DATA INFILE '${SECURE_FILE_PATH}librosMongoBackup.csv' 
     INTO TABLE proyecto_final.Libro 
     FIELDS TERMINATED BY ',' 
     ENCLOSED BY '"'
@@ -470,7 +470,7 @@ const timers = {
     start = Date.now();
     const QUANTITY = 1_000_000;
     const LICENCES_UNIQUE = Randomizer.generateUniqueLicences(QUANTITY);
-    await CsvGen.generateBooksCSVDataByThreads(1000000, LICENCES_UNIQUE, 10, FS_PATH + 'mongo1mBooks.txt')
+    await CsvGen.generateBooksCSVDataByThreads(1000000, LICENCES_UNIQUE, 10, FS_PATH + 'mongo1mBooks.csv')
 
   /**********************************************************************/
   /*
@@ -485,7 +485,7 @@ const timers = {
     mongoLoadData.ProcessArguments.push('--db=proyecto_final');
     mongoLoadData.ProcessArguments.push('--collection=Libro');
     mongoLoadData.ProcessArguments.push('--type=csv');
-    mongoLoadData.ProcessArguments.push(`--file=${FS_PATH}mongo1mBooks.txt`);
+    mongoLoadData.ProcessArguments.push(`--file=${FS_PATH}mongo1mBooks.csv`);
     mongoLoadData.ProcessArguments.push('--headerline')
     mongoLoadData.Execute()
     await mongoLoadData.Finish()
